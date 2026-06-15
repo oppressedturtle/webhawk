@@ -9,7 +9,7 @@
 Each roadmap item is a self-contained increment completed in one session, then committed + pushed. Work in order; skip ahead only if blocked.
 
 ## Phase 0 — Foundation
-- [ ] FastAPI backend + React (Vite/TS) dashboard skeletons
+- [x] FastAPI backend + React (Vite/TS) dashboard skeletons
 - [ ] Postgres (targets, scans, findings), Redis + worker queue for async scans
 - [ ] Docker Compose (api + worker + web + postgres + redis), Dockerfiles, CI stub
 - [ ] README, MIT LICENSE, .gitignore

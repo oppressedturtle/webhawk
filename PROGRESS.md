@@ -1,5 +1,31 @@
 # WebHawk — Progress Log
 
+## 2026-06-15 — Phase 0: React (Vite/TS) dashboard skeleton
+
+**Done:** completed Phase 0 item 1 (skeletons) by building the front end on top of the
+existing untracked Vite/TS config scaffold.
+
+- **`web/src/api.ts`** — typed backend client: `Health` interface mirroring the FastAPI
+  `HealthResponse`, an `ApiError` (carries HTTP status; status `0` = network failure),
+  and `getHealth(signal)` over the `/api` base (Vite proxies `/api/*` → FastAPI :8000).
+- **`web/src/App.tsx`** — dashboard shell with a discriminated `Status` union
+  (loading | ok | error). Fetches health on mount via `AbortController`, renders
+  status/version/uptime, and shows a friendly "Cannot reach the backend" + Retry on
+  failure. Includes the authorized-testing-only footer (product guardrail messaging).
+- **`web/src/main.tsx`** (React 18 `createRoot`, StrictMode, null-root guard),
+  **`index.css`** (dark/light theme tokens), **`test/setup.ts`** (jest-dom + cleanup).
+- **`web/src/App.test.tsx`** — 3 tests: renders health, network-down message, API-error
+  message. **`.eslintrc.cjs`** added; `@types/node` + `"node"` in tsconfig types so
+  `vite.config.ts` typechecks.
+- Ignored `.ruff_cache/` (was untracked).
+
+**Verification (all green):** `tsc --noEmit` clean · `eslint . --max-warnings 0` clean ·
+`vitest run` 3/3 · `vite build` succeeds (32 modules, 46.75 kB gzip JS).
+
+**Roadmap:** Phase 0 item 1 ✅. **Next:** Phase 0 item 2 — Postgres (targets/scans/findings)
++ Redis + worker queue; then Docker Compose (api+worker+web+postgres+redis).
+
+
 ## 2026-06-11 — Phase 0: FastAPI backend skeleton
 
 **Done:**

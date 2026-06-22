@@ -10,7 +10,7 @@ Each roadmap item is a self-contained increment completed in one session, then c
 
 ## Phase 0 — Foundation
 - [x] FastAPI backend + React (Vite/TS) dashboard skeletons
-- [ ] Postgres (targets, scans, findings), Redis + worker queue for async scans
+- [x] Postgres (targets, scans, findings), Redis + worker queue for async scans
 - [ ] Docker Compose (api + worker + web + postgres + redis), Dockerfiles, CI stub
 - [ ] README, MIT LICENSE, .gitignore
 

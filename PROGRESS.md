@@ -1,5 +1,31 @@
 # WebHawk — Progress Log
 
+## 2026-06-22 — Phase 0 item 2: Postgres data layer + Redis worker queue (backend)
+
+**Done:** completed Phase 0 item 2 — the persistence + async-scan hand-off foundation.
+
+- **`app/db.py`** — SQLAlchemy 2.0 `DeclarativeBase`, lazily-created engine + session factory
+  (`lru_cache`, `pool_pre_ping`) and a `get_session()` FastAPI dependency. Engine is built on
+  first use so the app/tests construct without a live DB.
+- **`app/models.py`** — ORM models for the full scan domain: `Target` (authorized site, scope
+  allowlist, `verified` + `verification_token` for Phase-1 ownership proof) → `Scan` (status
+  lifecycle: QUEUED/RUNNING/COMPLETED/FAILED/CANCELLED, `requested_by` for the audit log) →
+  `Finding` (Severity INFO→CRITICAL, title/location/evidence). Cascade deletes + indexes on
+  FKs, status and severity. Enums modelled as `StrEnum`.
+- **`app/core/queue.py`** — `ScanQueue`: Redis-list FIFO (`RPUSH`/`BLPOP`) carrying a typed
+  `ScanJob` (scan_id + target_id, JSON-serialised). Accepts an injected client (testable),
+  lazily builds a real one from settings otherwise. `enqueue`/`dequeue`/`depth`.
+- **`app/worker.py`** — separate worker entry point (`python -m app.worker`): blocking consume
+  loop with SIGINT/SIGTERM graceful shutdown, per-job exception isolation, and a `max_jobs`
+  hook for deterministic tests. `process_job` is the placeholder the Phase 2–4 scan pipeline
+  fills in.
+- **Tests:** `test_models.py` (round-trip + cascade delete + enum values against in-memory
+  SQLite) and `test_queue.py` (job JSON round-trip, FIFO order, worker drains the queue via a
+  fake Redis). Added deps: `sqlalchemy`, `psycopg[binary]`, `redis`.
+- **Verified:** pytest **9/9**, ruff clean, mypy strict clean (11 files). No live infra needed.
+- **Roadmap:** Phase 0 — 2/4.
+- **Next:** Phase 0 item 3 — Docker Compose (api + worker + web + postgres + redis), Dockerfiles, CI stub.
+
 ## 2026-06-15 — Phase 0: React (Vite/TS) dashboard skeleton
 
 **Done:** completed Phase 0 item 1 (skeletons) by building the front end on top of the

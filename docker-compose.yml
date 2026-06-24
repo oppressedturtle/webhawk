@@ -1,0 +1,82 @@
+# WebHawk — full local stack: postgres + redis + api + worker + web.
+#   docker compose up --build
+# The web dashboard is served at http://localhost:8080 and proxies /api to the API.
+name: webhawk
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-webhawk}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-webhawk}
+      POSTGRES_DB: ${POSTGRES_DB:-webhawk}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-webhawk} -d ${POSTGRES_DB:-webhawk}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      WEBHAWK_ENVIRONMENT: production
+      WEBHAWK_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-webhawk}:${POSTGRES_PASSWORD:-webhawk}@postgres:5432/${POSTGRES_DB:-webhawk}
+      WEBHAWK_REDIS_URL: redis://redis:6379/0
+    ports:
+      - "${API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      WEBHAWK_ENVIRONMENT: production
+      WEBHAWK_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-webhawk}:${POSTGRES_PASSWORD:-webhawk}@postgres:5432/${POSTGRES_DB:-webhawk}
+      WEBHAWK_REDIS_URL: redis://redis:6379/0
+
+  web:
+    build:
+      context: ./web
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${WEB_PORT:-8080}:80"
+
+volumes:
+  pgdata:

@@ -1,5 +1,31 @@
 # WebHawk — Progress Log
 
+## 2026-06-24 — Phase 0 item 3: Docker Compose + Dockerfiles + CI
+
+Containerised the whole stack and wired up CI so every push is gated.
+
+- **`backend/Dockerfile`** — multi-stage (venv builder → slim `python:3.12-slim` runtime),
+  non-root `webhawk` user, `pip install .`. One image serves both the **API**
+  (`uvicorn app.main:app`) and the **worker** (compose overrides CMD with `python -m app.worker`).
+- **`web/Dockerfile`** — Node build of the Vite bundle → **nginx** runtime. `web/nginx.conf`
+  serves the SPA (history fallback) and reverse-proxies `/api/*` → `api:8000` with prefix strip,
+  mirroring the Vite dev proxy so the browser stays **same-origin** (no CORS in the container).
+- **`docker-compose.yml`** — `postgres` + `redis` + `api` + `worker` + `web`, healthchecks,
+  `depends_on: service_healthy` gating, named volume, env-overridable host ports (web on :8080).
+  Backend env uses the `WEBHAWK_` prefix (DATABASE_URL/REDIS_URL). `docker compose config` ✓.
+- **`.github/workflows/ci.yml`** — three jobs, concurrency cancel-in-progress:
+  **backend** (ruff → mypy strict → pytest), **web** (lint → typecheck → vitest → build),
+  **docker** (buildx build of both images with GHA cache, gated on the first two).
+- `+ backend/.dockerignore`, `+ web/.dockerignore` to keep build contexts lean.
+
+**Verification (all green, locally):** backend `ruff` ✓ · `mypy app` (strict) ✓ · `pytest` 9/9 ✓;
+web `eslint` ✓ · `vite build` ✓; `docker compose config` ✓. (Image builds run in CI — no local
+Docker daemon this run.)
+
+**Roadmap:** Phase 0 — 3/4 (item 3 ✅). **Next:** Phase 0 item 4 — finalize the root README
+(architecture + one-command compose quick start) to close Phase 0, then Phase 1 (the
+authorization/scope guardrail — ownership verification + scope allowlist + audit log).
+
 ## 2026-06-22 — Phase 0 item 2: Postgres data layer + Redis worker queue (backend)
 
 **Done:** completed Phase 0 item 2 — the persistence + async-scan hand-off foundation.

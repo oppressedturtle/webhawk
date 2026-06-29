@@ -1,5 +1,38 @@
 # WebHawk — Progress Log
 
+## 2026-06-29 (b) — Phase 1 item 1: target registration + ownership verification (guardrail)
+
+Built the **authorization guardrail's first half** — you can't scan a target until you've proven you
+control it. This is the feature that makes WebHawk an *authorized* scanner.
+
+- **`app/verification.py`** — pure ownership-verification logic with the network hidden behind small
+  injectable Protocols (`TxtResolver`, `FileFetcher`), so it's fully offline-testable.
+  - **DNS method:** the owner publishes `webhawk-site-verification=<token>` as a TXT record on the
+    target host (`check_dns`).
+  - **File method:** the owner serves the raw token at `/.well-known/webhawk-verification.txt`
+    (`check_file`; whitespace-tolerant, size/time-bounded fetch).
+  - `verify_ownership` tries DNS then file; the first proof that holds wins, returning a typed
+    `VerificationOutcome` (verified / method / human detail). Default impls: `DnspythonTxtResolver`
+    and a `UrllibFileFetcher` (stdlib only, 4 KiB / 8 s caps) — both lazy-import their deps.
+- **`app/api/targets.py`** — REST surface (wired into `create_app`):
+  - `POST /targets` — register (validated `AnyHttpUrl`); scope allowlist defaults to the target's own
+    host; returns the token + both sets of verification instructions (TXT value, file path, file URL).
+  - `GET /targets`, `GET /targets/{id}` (404 when missing).
+  - `POST /targets/{id}/verify` — runs verification and flips `verified` on success.
+  - Resolver/fetcher injected via FastAPI dependencies (overridden in tests); modern `Annotated[...]`
+    dependency style throughout.
+- Added **`dnspython>=2.7`** to runtime deps.
+
+**Tests:** `test_verification.py` (13, pure logic, faked network) + `test_targets_api.py` (8,
+FastAPI `TestClient` over in-memory SQLite with fake DNS/file verifiers via dependency overrides):
+register → instructions, non-HTTP URL rejected (422), get/list, 404s, verify-via-DNS and verify-via-
+file flip + persist `verified`, and the no-proof failure path. **ruff clean · mypy (strict) clean ·
+pytest 30/30** (21 new).
+
+**Roadmap:** Phase 1 now 1/3. **NEXT:** Phase 1 item 2 — explicit authorization acknowledgement +
+scope allowlist enforcement (hosts/paths) + global rate limit, then item 3 the audit log.
+
+
 ## 2026-06-29 — Phase 0 item 4: finalize root README (closes Phase 0)
 
 Brought the root `README.md` up to the portfolio bar to **close Phase 0**: added an ASCII

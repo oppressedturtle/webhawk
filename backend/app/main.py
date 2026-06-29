@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app import __version__
 from app.api.health import router as health_router
+from app.api.targets import router as targets_router
 from app.config import Settings, get_settings
 from app.core.logging import configure_logging, get_logger
 
@@ -40,6 +41,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
 
     app.include_router(health_router)
+    app.include_router(targets_router)
 
     logger.info("WebHawk API initialised (env=%s)", settings.environment)
     return app

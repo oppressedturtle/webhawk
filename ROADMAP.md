@@ -15,7 +15,7 @@ Each roadmap item is a self-contained increment completed in one session, then c
 - [x] README, MIT LICENSE, .gitignore
 
 ## Phase 1 — Authorization & scope (guardrail first)
-- [ ] Target registration + ownership verification (DNS TXT token / served file)
+- [x] Target registration + ownership verification (DNS TXT token / served file) _(`app/verification.py` + `app/api/targets.py`: register a target → get a token + DNS-TXT and well-known-file instructions; `/targets/{id}/verify` proves control via either method (network behind injectable `TxtResolver`/`FileFetcher` Protocols; dnspython + stdlib-urllib defaults) and flips `verified`. 21 offline tests)_
 - [ ] Explicit authorization acknowledgement, scope allowlist (hosts/paths), global rate limit
 - [ ] Audit log of who scanned what, when
 

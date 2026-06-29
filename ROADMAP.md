@@ -12,7 +12,7 @@ Each roadmap item is a self-contained increment completed in one session, then c
 - [x] FastAPI backend + React (Vite/TS) dashboard skeletons
 - [x] Postgres (targets, scans, findings), Redis + worker queue for async scans
 - [x] Docker Compose (api + worker + web + postgres + redis), Dockerfiles, CI stub
-- [ ] README, MIT LICENSE, .gitignore
+- [x] README, MIT LICENSE, .gitignore
 
 ## Phase 1 — Authorization & scope (guardrail first)
 - [ ] Target registration + ownership verification (DNS TXT token / served file)

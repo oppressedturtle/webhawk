@@ -1,5 +1,20 @@
 # WebHawk — Progress Log
 
+## 2026-06-29 — Phase 0 item 4: finalize root README (closes Phase 0)
+
+Brought the root `README.md` up to the portfolio bar to **close Phase 0**: added an ASCII
+**architecture diagram** (web→api→redis queue→worker→postgres), per-service responsibilities,
+a **quick start** (`docker compose up --build`; dashboard :8080, API :8000, env-overridable
+ports), a **local development** section (backend venv + `pip install -e '.[dev]'` + ruff/mypy/
+pytest + uvicorn/worker; web npm lint/typecheck/test/build/dev — all verified against the actual
+`pyproject.toml` optional-deps and compose service names/ports), and a **project layout** tree.
+LICENSE (MIT) + `.gitignore` were already in place.
+
+Docs-only change (no code touched). **Roadmap: Phase 0 complete (4/4).** **Next:** Phase 1 item 1
+— the authorization guardrail: target registration + ownership verification (DNS TXT token /
+served file) before any scan can run.
+
+
 ## 2026-06-24 — Phase 0 item 3: Docker Compose + Dockerfiles + CI
 
 Containerised the whole stack and wired up CI so every push is gated.

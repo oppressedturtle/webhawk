@@ -1,5 +1,38 @@
 # WebHawk — Progress Log
 
+## 2026-07-01 — Phase 1 item 2 (partial): authorization ack + scope allowlist enforcement
+
+Built the **second half of the pre-scan guardrail** — the enforcement that keeps the scanner on the
+authorized target. Two of the item's three parts landed; the global rate limit is next.
+
+- **Explicit authorization acknowledgement.** `POST /targets` now requires `authorized: true` and
+  refuses registration otherwise (422); the affirmation is persisted with `authorized_by` +
+  `authorized_at`. New `Target` columns: `scope_paths`, `allow_subdomains`, `authorized`,
+  `authorized_by`, `authorized_at` (created via `create_all`; no Alembic in this project yet).
+- **`app/scope.py` — `ScopePolicy`, the fail-closed scope engine.** The single chokepoint every
+  crawler/check (Phases 2–4) must consult before touching a URL. Decisions:
+  - **Host:** exact match by default; subdomains only when `allow_subdomains`, and even then matched
+    on a **dotted label boundary** so `evil-example.com` can never match `example.com`. Hosts are
+    lowercased + IDNA-encoded (no unicode-homograph bypass); the port is ignored.
+  - **Path:** optional prefix allowlist matched on a `/` boundary (so `/admin` doesn't scope
+    `/administrator`); a root `/` prefix collapses to "any path".
+  - **Scheme:** http(s) only. Malformed URLs, missing hosts, and unknown schemes all fail closed.
+  - Surfaced via `GET /targets/{id}/scope-check?url=…` returning `{in_scope, reason}` for the UI.
+- Wired the scope config through `TargetCreate` / `TargetOut`.
+
+**Tests:** `test_scope.py` (13 cases): exact/subdomain/look-alike, scheme allowlist, fail-closed
+malformed, path-prefix boundary, multi-prefix, root collapse, case/IDNA/FQDN-dot normalization.
+Updated + extended `test_targets_api.py`: authorization-gate (declined + omitted both 422),
+scope config round-trip, and the `scope-check` endpoint (in-scope, subdomain, off-path, off-host, 404).
+
+**Verification (all green):** `ruff check` ✓ · **mypy strict** ✓ (14 files) · **pytest 47/47**
+(17 new) ✓. All offline (in-memory SQLite + fake verifiers).
+
+**Roadmap:** Phase 1 item 2 — authorization ack + scope allowlist ✅; **global rate limit remaining**.
+**Next:** a reusable global rate limiter (fixed-window, applied app-wide) to finish item 2, then
+item 3 — the audit log of who scanned what, when.
+
+
 ## 2026-06-29 (b) — Phase 1 item 1: target registration + ownership verification (guardrail)
 
 Built the **authorization guardrail's first half** — you can't scan a target until you've proven you

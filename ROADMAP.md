@@ -16,7 +16,7 @@ Each roadmap item is a self-contained increment completed in one session, then c
 
 ## Phase 1 — Authorization & scope (guardrail first)
 - [x] Target registration + ownership verification (DNS TXT token / served file) _(`app/verification.py` + `app/api/targets.py`: register a target → get a token + DNS-TXT and well-known-file instructions; `/targets/{id}/verify` proves control via either method (network behind injectable `TxtResolver`/`FileFetcher` Protocols; dnspython + stdlib-urllib defaults) and flips `verified`. 21 offline tests)_
-- [ ] Explicit authorization acknowledgement, scope allowlist (hosts/paths), global rate limit
+- [ ] Explicit authorization acknowledgement, scope allowlist (hosts/paths), global rate limit _(**authorization ack + scope allowlist done**: registration now refuses unless the caller confirms `authorized:true` (recorded with who/when); `app/scope.py` `ScopePolicy` is the fail-closed in/out-of-scope engine — exact-host + opt-in subdomain (dot-boundary, no look-alike), path-prefix boundary matching, http(s)-only, IDNA-normalized — surfaced via `GET /targets/{id}/scope-check`; 13 scope + API tests. **Remaining: global rate limit.**)_
 - [ ] Audit log of who scanned what, when
 
 ## Phase 2 — Crawler / spider

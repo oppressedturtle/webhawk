@@ -67,7 +67,18 @@ class Target(Base):
     base_url: Mapped[str] = mapped_column(String(2048))
     # Hosts/paths the scanner is permitted to touch (scope allowlist).
     scope_hosts: Mapped[list[str]] = mapped_column(JSON, default=list)
+    # Path prefixes the scanner may touch (empty => any path on an in-scope host).
+    scope_paths: Mapped[list[str]] = mapped_column(JSON, default=list)
+    # Whether subdomains of the scope hosts are also in scope.
+    allow_subdomains: Mapped[bool] = mapped_column(default=False)
     verified: Mapped[bool] = mapped_column(default=False)
+    # Explicit authorization acknowledgement — the user affirmed they are
+    # permitted to test this target. Required before registration succeeds.
+    authorized: Mapped[bool] = mapped_column(default=False)
+    authorized_by: Mapped[str | None] = mapped_column(String(255), default=None)
+    authorized_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
     # Token the owner must publish (DNS TXT / served file) to prove control.
     verification_token: Mapped[str] = mapped_column(String(64), default=_uuid)
     created_at: Mapped[datetime] = mapped_column(

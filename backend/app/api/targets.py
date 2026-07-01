@@ -8,6 +8,7 @@ success. Scans (added later) will refuse to start on an unverified target.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -17,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_session
 from app.models import Target
+from app.scope import ScopePolicy
 from app.verification import (
     WELL_KNOWN_PATH,
     DnspythonTxtResolver,
@@ -56,6 +58,14 @@ class TargetCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     base_url: AnyHttpUrl
     scope_hosts: list[str] = Field(default_factory=list)
+    scope_paths: list[str] = Field(default_factory=list)
+    allow_subdomains: bool = False
+    # The user must explicitly confirm authorization to test this target.
+    # Registration is refused unless this is true (the guardrail is a feature).
+    authorized: bool = Field(
+        description="You must confirm you are authorized to scan this target."
+    )
+    authorized_by: str | None = Field(default=None, max_length=255)
 
 
 class VerificationInstructions(BaseModel):
@@ -70,8 +80,18 @@ class TargetOut(BaseModel):
     name: str
     base_url: str
     scope_hosts: list[str]
+    scope_paths: list[str]
+    allow_subdomains: bool
     verified: bool
+    authorized: bool
+    authorized_by: str | None
     verification: VerificationInstructions
+
+
+class ScopeCheckResult(BaseModel):
+    url: str
+    in_scope: bool
+    reason: str
 
 
 class VerifyResult(BaseModel):
@@ -87,7 +107,11 @@ def _to_out(target: Target) -> TargetOut:
         name=target.name,
         base_url=target.base_url,
         scope_hosts=target.scope_hosts,
+        scope_paths=target.scope_paths,
+        allow_subdomains=target.allow_subdomains,
         verified=target.verified,
+        authorized=target.authorized,
+        authorized_by=target.authorized_by,
         verification=VerificationInstructions(
             token=target.verification_token,
             dns_txt_record=expected_txt_record(target.verification_token),
@@ -109,7 +133,17 @@ def _get_or_404(session: Session, target_id: str) -> Target:
 
 @router.post("", response_model=TargetOut, status_code=status.HTTP_201_CREATED)
 def create_target(body: TargetCreate, session: SessionDep) -> TargetOut:
-    """Register a target. Returns the token + how to prove ownership."""
+    """Register a target. Returns the token + how to prove ownership.
+
+    Refuses registration unless the caller explicitly acknowledges authorization
+    (``authorized: true``) — the affirmation is recorded with a timestamp.
+    """
+    if not body.authorized:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="You must confirm you are authorized to scan this target.",
+        )
+
     base_url = str(body.base_url)
     host = host_of(base_url)
     if host is None:
@@ -120,11 +154,36 @@ def create_target(body: TargetCreate, session: SessionDep) -> TargetOut:
     # Default the scope allowlist to the target's own host when none is supplied.
     scope = body.scope_hosts or [host]
 
-    target = Target(name=body.name, base_url=base_url, scope_hosts=scope)
+    target = Target(
+        name=body.name,
+        base_url=base_url,
+        scope_hosts=scope,
+        scope_paths=body.scope_paths,
+        allow_subdomains=body.allow_subdomains,
+        authorized=True,
+        authorized_by=body.authorized_by,
+        authorized_at=datetime.now(UTC),
+    )
     session.add(target)
     session.commit()
     session.refresh(target)
     return _to_out(target)
+
+
+@router.get("/{target_id}/scope-check", response_model=ScopeCheckResult)
+def scope_check(target_id: str, url: str, session: SessionDep) -> ScopeCheckResult:
+    """Report whether ``url`` falls within a target's authorized scope.
+
+    Consulted by the UI (and, later, every crawler/check) before touching a URL.
+    """
+    target = _get_or_404(session, target_id)
+    policy = ScopePolicy.from_target(
+        target.scope_hosts,
+        path_prefixes=target.scope_paths,
+        allow_subdomains=target.allow_subdomains,
+    )
+    decision = policy.check(url)
+    return ScopeCheckResult(url=url, in_scope=decision.allowed, reason=decision.reason)
 
 
 @router.get("", response_model=list[TargetOut])
